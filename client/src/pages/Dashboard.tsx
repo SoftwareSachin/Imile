@@ -3,8 +3,9 @@ import KPICard from '@/components/KPICard';
 import DeliveryMap from '@/components/DeliveryMap';
 import AlertCard from '@/components/AlertCard';
 import DeliveryTable from '@/components/DeliveryTable';
+import DelayHeatmap from '@/components/DelayHeatmap';
 import { Package, TrendingUp, Users, Clock } from 'lucide-react';
-import type { Courier, Anomaly, Delivery } from '@shared/schema';
+import type { Courier, Anomaly, Delivery, Zone } from '@shared/schema';
 
 export default function Dashboard() {
   const { data: couriers = [] } = useQuery<Courier[]>({
@@ -17,6 +18,10 @@ export default function Dashboard() {
 
   const { data: deliveries = [] } = useQuery<Delivery[]>({
     queryKey: ['/api/deliveries'],
+  });
+
+  const { data: zones = [] } = useQuery<Zone[]>({
+    queryKey: ['/api/zones'],
   });
 
   const totalDeliveries = deliveries.length;
@@ -99,13 +104,25 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div>
-        <h2 className="text-lg font-semibold mb-4">Recent Deliveries</h2>
-        <DeliveryTable
-          deliveries={tableDeliveries}
-          onViewDetails={(id) => console.log('View details:', id)}
-          onTrack={(id) => console.log('Track delivery:', id)}
-        />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <h2 className="text-lg font-semibold mb-4">Recent Deliveries</h2>
+          <DeliveryTable
+            deliveries={tableDeliveries}
+            onViewDetails={(id) => console.log('View details:', id)}
+            onTrack={(id) => console.log('Track delivery:', id)}
+          />
+        </div>
+        <div>
+          <DelayHeatmap zones={zones.map(z => ({
+            id: z.id,
+            name: z.name,
+            delayCount: z.delayCount,
+            avgDelayMinutes: z.avgDelayMinutes,
+            lat: z.lat,
+            lng: z.lng
+          }))} />
+        </div>
       </div>
     </div>
   );
