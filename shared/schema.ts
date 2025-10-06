@@ -28,6 +28,7 @@ export const couriers = pgTable("couriers", {
   location: text("location").notNull(),
   vehicle: text("vehicle"),
   phone: text("phone"),
+  company: text("company").notNull().default('Other'),
 });
 
 export const insertCourierSchema = createInsertSchema(couriers).omit({ id: true });
@@ -50,6 +51,7 @@ export const deliveries = pgTable("deliveries", {
   priority: text("priority").notNull(),
   packageSize: text("package_size"),
   specialInstructions: text("special_instructions"),
+  company: text("company").notNull().default('Other'),
 });
 
 export const insertDeliverySchema = createInsertSchema(deliveries).omit({ id: true });
