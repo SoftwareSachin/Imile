@@ -61,19 +61,15 @@ export default function Tracking() {
   }, [etaError, toast]);
 
   const timelineEvents = useMemo(() => {
-    if (etaPrediction?.events && etaPrediction.events.length > 0) {
-      return etaPrediction.events;
-    }
-    
     if (!delivery) return [];
     
     return [
-      { id: '1', label: 'Order Confirmed', time: delivery.createdAt || 'N/A', status: 'completed' as const },
-      { id: '2', label: 'Picked Up', time: delivery.pickupTime || 'N/A', status: delivery.pickupTime ? 'completed' as const : 'upcoming' as const },
-      { id: '3', label: 'In Transit', time: 'In progress', status: delivery.status === 'in-transit' ? 'current' as const : delivery.status === 'delivered' ? 'completed' as const : 'upcoming' as const, location: courier?.location },
-      { id: '4', label: 'Delivered', time: delivery.eta || 'Estimated', status: delivery.status === 'delivered' ? 'completed' as const : 'upcoming' as const, location: delivery.address },
+      { id: '1', label: 'Order Confirmed', time: new Date(Date.now() - 3600000).toLocaleTimeString(), status: 'completed' as const },
+      { id: '2', label: 'Picked Up', time: delivery.pickupTime ? new Date(delivery.pickupTime).toLocaleTimeString() : 'Pending', status: delivery.pickupTime ? 'completed' as const : 'upcoming' as const },
+      { id: '3', label: 'In Transit', time: 'In progress', status: delivery.status === 'in_transit' ? 'current' as const : delivery.status === 'delivered' ? 'completed' as const : 'upcoming' as const, location: courier?.location },
+      { id: '4', label: 'Delivered', time: delivery.actualDeliveryTime ? new Date(delivery.actualDeliveryTime).toLocaleTimeString() : new Date(delivery.eta).toLocaleTimeString() + ' (Est)', status: delivery.status === 'delivered' ? 'completed' as const : 'upcoming' as const, location: delivery.address },
     ];
-  }, [etaPrediction, delivery, courier]);
+  }, [delivery, courier]);
 
   if (deliveriesError || couriersError) {
     return (

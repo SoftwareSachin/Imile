@@ -140,10 +140,10 @@ export default function Dashboard() {
           <DelayHeatmap zones={zones.map(z => ({
             id: z.id,
             name: z.name,
-            delayCount: z.delayCount,
+            delayCount: z.deliveryCount,
             avgDelayMinutes: z.avgDelayMinutes,
-            lat: z.lat,
-            lng: z.lng
+            lat: z.centerLat,
+            lng: z.centerLng
           }))} />
         </div>
       </div>
