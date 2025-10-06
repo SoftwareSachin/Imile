@@ -28,13 +28,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <header className="sticky top-0 z-50 border-b bg-background">
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-8">
-            <Link href="/">
-              <a className="flex items-center gap-2 hover-elevate rounded-md px-2 py-1" data-testid="link-logo">
-                <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-                  <Package className="w-5 h-5 text-primary-foreground" />
-                </div>
-                <span className="text-xl font-semibold">DeliveryOps</span>
-              </a>
+            <Link href="/" className="flex items-center gap-2 hover-elevate rounded-md px-2 py-1" data-testid="link-logo">
+              <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
+                <Package className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <span className="text-xl font-semibold">DeliveryOps</span>
             </Link>
             
             <nav className="hidden md:flex items-center gap-1">
@@ -42,18 +40,18 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 const Icon = item.icon;
                 const active = isActive(item.path);
                 return (
-                  <Link key={item.path} href={item.path}>
-                    <a
-                      className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors hover-elevate ${
-                        active
-                          ? 'bg-secondary text-foreground'
-                          : 'text-muted-foreground'
-                      }`}
-                      data-testid={`link-${item.name.toLowerCase()}`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      {item.name}
-                    </a>
+                  <Link 
+                    key={item.path} 
+                    href={item.path}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors hover-elevate ${
+                      active
+                        ? 'bg-secondary text-foreground'
+                        : 'text-muted-foreground'
+                    }`}
+                    data-testid={`link-${item.name.toLowerCase()}`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {item.name}
                   </Link>
                 );
               })}
