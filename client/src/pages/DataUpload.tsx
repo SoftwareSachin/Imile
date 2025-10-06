@@ -187,16 +187,11 @@ export default function DataUpload() {
                   data-testid={`select-company-${company.id}`}
                   className={cn(
                     "relative group text-left transition-all duration-200",
-                    "rounded-xl border-2 p-5 hover:shadow-lg",
+                    "rounded-xl border-2 p-5",
                     isSelected 
-                      ? "border-foreground shadow-md scale-[1.02]" 
-                      : "border-border hover:border-foreground/50"
+                      ? "border-foreground shadow-md" 
+                      : "border-border hover:border-foreground/30 hover:shadow-sm"
                   )}
-                  style={{
-                    backgroundColor: isSelected 
-                      ? `${company.color}10` 
-                      : 'transparent'
-                  }}
                 >
                   <div className="flex flex-col gap-3">
                     <div 
@@ -245,8 +240,8 @@ export default function DataUpload() {
                 className={cn(
                   "relative border-2 border-dashed rounded-xl p-12 transition-all duration-200",
                   dragActive 
-                    ? "border-foreground bg-accent" 
-                    : "border-border hover:border-foreground/50"
+                    ? "border-primary" 
+                    : "border-border hover:border-foreground/30"
                 )}
               >
                 <input
@@ -306,17 +301,9 @@ export default function DataUpload() {
                 <Button
                   onClick={handleUpload}
                   disabled={!selectedFile || !selectedCompany || uploading}
-                  className="w-full h-12 text-base font-medium"
+                  className="w-full h-12 text-base font-medium shadow-sm hover:shadow"
                   size="lg"
                   data-testid="button-upload"
-                  style={
-                    selectedCompanyData && selectedFile && !uploading
-                      ? {
-                          backgroundColor: selectedCompanyData.color,
-                          color: 'white',
-                        }
-                      : undefined
-                  }
                 >
                   {uploading ? (
                     <>
