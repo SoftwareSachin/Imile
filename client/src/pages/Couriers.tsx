@@ -2,7 +2,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import CourierCard from '@/components/CourierCard';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Filter, Plus } from 'lucide-react';
+import { Search, Filter, Plus, Loader2, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 import type { Courier } from '@shared/schema';
 import {
@@ -28,7 +28,7 @@ export default function Couriers() {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
-  const { data: couriers = [] } = useQuery<Courier[]>({
+  const { data: couriers = [], isLoading, error } = useQuery<Courier[]>({
     queryKey: ['/api/couriers'],
   });
 
@@ -82,6 +82,26 @@ export default function Couriers() {
   const onSubmit = (data: CourierFormData) => {
     createCourierMutation.mutate(data);
   };
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-error mx-auto mb-4" />
+          <p className="text-lg font-medium text-foreground">Failed to load couriers</p>
+          <p className="text-sm text-muted-foreground mt-2">Please try refreshing the page</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

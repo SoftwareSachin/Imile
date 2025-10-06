@@ -2,33 +2,110 @@ import { useQuery } from '@tanstack/react-query';
 import ETATimeline from '@/components/ETATimeline';
 import DeliveryMap from '@/components/DeliveryMap';
 import { Card } from '@/components/ui/card';
-import { Package, User, MapPin, Clock } from 'lucide-react';
+import { Package, User, MapPin, Clock, Loader2, AlertCircle } from 'lucide-react';
 import type { Delivery, Courier, EtaPrediction } from '@shared/schema';
 import { useLocation } from 'wouter';
+import { useMemo, useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Tracking() {
   const [location] = useLocation();
   const searchParams = new URLSearchParams(location.split('?')[1]);
   const deliveryId = searchParams.get('id');
+  const { toast } = useToast();
 
-  const { data: deliveries = [] } = useQuery<Delivery[]>({
+  const { data: deliveries = [], isLoading: deliveriesLoading, error: deliveriesError } = useQuery<Delivery[]>({
     queryKey: ['/api/deliveries'],
   });
 
-  const { data: couriers = [] } = useQuery<Courier[]>({
+  const { data: couriers = [], isLoading: couriersLoading, error: couriersError } = useQuery<Courier[]>({
     queryKey: ['/api/couriers'],
   });
 
-  const delivery = deliveryId ? deliveries.find(d => d.id === deliveryId) : deliveries[0];
-  const courier = delivery ? couriers.find(c => c.id === delivery.courierId) : undefined;
+  const delivery = useMemo(() => {
+    if (deliveryId) {
+      return deliveries.find(d => d.id === deliveryId);
+    }
+    return deliveries[0];
+  }, [deliveries, deliveryId]);
 
-  const mockEvents = [
-    { id: '1', label: 'Order Confirmed', time: '1:15 PM', status: 'completed' as const },
-    { id: '2', label: 'Picked Up', time: delivery?.pickupTime || '1:42 PM', status: 'completed' as const, location: 'Warehouse' },
-    { id: '3', label: 'In Transit', time: '2:05 PM', status: delivery?.status === 'in-transit' ? 'current' as const : 'completed' as const, location: courier?.location },
-    { id: '4', label: 'Out for Delivery', time: '2:30 PM', status: delivery?.status === 'delivered' ? 'completed' as const : 'upcoming' as const },
-    { id: '5', label: 'Delivered', time: delivery?.eta || '3:15 PM (Est)', status: delivery?.status === 'delivered' ? 'completed' as const : 'upcoming' as const, location: delivery?.address },
-  ];
+  const courier = useMemo(() => {
+    if (!delivery) return undefined;
+    return couriers.find(c => c.id === delivery.courierId);
+  }, [couriers, delivery]);
+
+  const { data: etaPrediction, isLoading: etaLoading, error: etaError } = useQuery<EtaPrediction>({
+    queryKey: ['/api/eta-predictions/delivery', delivery?.id],
+    queryFn: async () => {
+      const response = await fetch(`/api/eta-predictions/delivery/${delivery?.id}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null;
+        }
+        throw new Error('Failed to fetch ETA prediction');
+      }
+      return response.json();
+    },
+    enabled: !!delivery?.id,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (etaError) {
+      toast({
+        title: 'ETA Prediction Unavailable',
+        description: 'Unable to load real-time ETA prediction. Showing fallback timeline.',
+        variant: 'destructive',
+      });
+    }
+  }, [etaError, toast]);
+
+  const timelineEvents = useMemo(() => {
+    if (etaPrediction?.events && etaPrediction.events.length > 0) {
+      return etaPrediction.events;
+    }
+    
+    if (!delivery) return [];
+    
+    return [
+      { id: '1', label: 'Order Confirmed', time: delivery.createdAt || 'N/A', status: 'completed' as const },
+      { id: '2', label: 'Picked Up', time: delivery.pickupTime || 'N/A', status: delivery.pickupTime ? 'completed' as const : 'upcoming' as const },
+      { id: '3', label: 'In Transit', time: 'In progress', status: delivery.status === 'in-transit' ? 'current' as const : delivery.status === 'delivered' ? 'completed' as const : 'upcoming' as const, location: courier?.location },
+      { id: '4', label: 'Delivered', time: delivery.eta || 'Estimated', status: delivery.status === 'delivered' ? 'completed' as const : 'upcoming' as const, location: delivery.address },
+    ];
+  }, [etaPrediction, delivery, courier]);
+
+  if (deliveriesError || couriersError) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-error mx-auto mb-4" />
+          <p className="text-lg font-medium text-foreground">Failed to load delivery data</p>
+          <p className="text-sm text-muted-foreground mt-2">Please try refreshing the page</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (deliveriesLoading || couriersLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!delivery) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-lg text-muted-foreground">No delivery found</p>
+          <p className="text-sm text-muted-foreground mt-2">Please select a delivery to track</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -48,28 +125,28 @@ export default function Tracking() {
                 <Package className="w-5 h-5 text-muted-foreground mt-0.5" />
                 <div>
                   <p className="text-sm text-muted-foreground">Order ID</p>
-                  <p className="font-medium font-mono" data-testid="text-order-id">{delivery?.orderId || 'N/A'}</p>
+                  <p className="font-medium font-mono" data-testid="text-order-id">{delivery.orderId}</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <User className="w-5 h-5 text-muted-foreground mt-0.5" />
                 <div>
                   <p className="text-sm text-muted-foreground">Customer</p>
-                  <p className="font-medium">{delivery?.customerName || 'N/A'}</p>
+                  <p className="font-medium">{delivery.customerName}</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 text-muted-foreground mt-0.5" />
                 <div>
                   <p className="text-sm text-muted-foreground">Delivery Address</p>
-                  <p className="font-medium">{delivery?.address || 'N/A'}</p>
+                  <p className="font-medium">{delivery.address}</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <Clock className="w-5 h-5 text-muted-foreground mt-0.5" />
                 <div>
                   <p className="text-sm text-muted-foreground">Estimated Arrival</p>
-                  <p className="font-medium">{delivery?.eta || 'N/A'}</p>
+                  <p className="font-medium">{etaPrediction?.predictedEta || delivery.eta}</p>
                 </div>
               </div>
             </div>
@@ -77,12 +154,20 @@ export default function Tracking() {
         </div>
 
         <div>
-          <ETATimeline
-            orderId={delivery?.orderId || 'N/A'}
-            eta={delivery?.eta || 'N/A'}
-            confidence={87}
-            events={mockEvents}
-          />
+          {etaLoading ? (
+            <Card className="p-6">
+              <div className="flex items-center justify-center h-48">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            </Card>
+          ) : (
+            <ETATimeline
+              orderId={delivery.orderId}
+              eta={etaPrediction?.predictedEta || delivery.eta}
+              confidence={etaPrediction?.confidence ? Math.round(etaPrediction.confidence * 100) : 0}
+              events={timelineEvents}
+            />
+          )}
         </div>
       </div>
     </div>

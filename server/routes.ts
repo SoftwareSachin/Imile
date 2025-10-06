@@ -45,12 +45,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/couriers/:id", async (req, res) => {
     try {
-      const courier = await storage.updateCourier(req.params.id, req.body);
+      const validatedData = insertCourierSchema.partial().parse(req.body);
+      const courier = await storage.updateCourier(req.params.id, validatedData);
       if (!courier) {
         return res.status(404).json({ error: "Courier not found" });
       }
       res.json(courier);
     } catch (error) {
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid courier data" });
+      }
       res.status(500).json({ error: "Failed to update courier" });
     }
   });
@@ -110,12 +114,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/deliveries/:id", async (req, res) => {
     try {
-      const delivery = await storage.updateDelivery(req.params.id, req.body);
+      const validatedData = insertDeliverySchema.partial().parse(req.body);
+      const delivery = await storage.updateDelivery(req.params.id, validatedData);
       if (!delivery) {
         return res.status(404).json({ error: "Delivery not found" });
       }
       res.json(delivery);
     } catch (error) {
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid delivery data" });
+      }
       res.status(500).json({ error: "Failed to update delivery" });
     }
   });
@@ -175,12 +183,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/anomalies/:id", async (req, res) => {
     try {
-      const anomaly = await storage.updateAnomaly(req.params.id, req.body);
+      const validatedData = insertAnomalySchema.partial().parse(req.body);
+      const anomaly = await storage.updateAnomaly(req.params.id, validatedData);
       if (!anomaly) {
         return res.status(404).json({ error: "Anomaly not found" });
       }
       res.json(anomaly);
     } catch (error) {
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid anomaly data" });
+      }
       res.status(500).json({ error: "Failed to update anomaly" });
     }
   });
@@ -231,12 +243,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/zones/:id", async (req, res) => {
     try {
-      const zone = await storage.updateZone(req.params.id, req.body);
+      const validatedData = insertZoneSchema.partial().parse(req.body);
+      const zone = await storage.updateZone(req.params.id, validatedData);
       if (!zone) {
         return res.status(404).json({ error: "Zone not found" });
       }
       res.json(zone);
     } catch (error) {
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid zone data" });
+      }
       res.status(500).json({ error: "Failed to update zone" });
     }
   });
@@ -333,12 +349,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/eta-predictions/:id", async (req, res) => {
     try {
-      const prediction = await storage.updateEtaPrediction(req.params.id, req.body);
+      const validatedData = insertEtaPredictionSchema.partial().parse(req.body);
+      const prediction = await storage.updateEtaPrediction(req.params.id, validatedData);
       if (!prediction) {
         return res.status(404).json({ error: "ETA prediction not found" });
       }
       res.json(prediction);
     } catch (error) {
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid ETA prediction data" });
+      }
       res.status(500).json({ error: "Failed to update ETA prediction" });
     }
   });

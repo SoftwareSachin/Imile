@@ -1,23 +1,26 @@
 import { useQuery } from '@tanstack/react-query';
 import PerformanceChart from '@/components/PerformanceChart';
 import KPICard from '@/components/KPICard';
-import { TrendingUp, AlertTriangle, Target, Clock } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Target, Clock, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import type { PerformanceMetric, Delivery, Anomaly } from '@shared/schema';
 
 export default function Analytics() {
-  const { data: metrics = [] } = useQuery<PerformanceMetric[]>({
+  const { data: metrics = [], isLoading: metricsLoading, error: metricsError } = useQuery<PerformanceMetric[]>({
     queryKey: ['/api/metrics'],
   });
 
-  const { data: deliveries = [] } = useQuery<Delivery[]>({
+  const { data: deliveries = [], isLoading: deliveriesLoading, error: deliveriesError } = useQuery<Delivery[]>({
     queryKey: ['/api/deliveries'],
   });
 
-  const { data: anomalies = [] } = useQuery<Anomaly[]>({
+  const { data: anomalies = [], isLoading: anomaliesLoading, error: anomaliesError } = useQuery<Anomaly[]>({
     queryKey: ['/api/anomalies'],
   });
+
+  const isLoading = metricsLoading || deliveriesLoading || anomaliesLoading;
+  const error = metricsError || deliveriesError || anomaliesError;
 
   const totalDeliveries = deliveries.length;
   const onTimeDeliveries = deliveries.filter(d => d.status === 'on-time' || d.status === 'delivered').length;
@@ -56,6 +59,26 @@ export default function Analytics() {
   const avgDeliveryTime = metrics.length > 0
     ? Math.round(metrics.reduce((sum, m) => sum + m.avgDeliveryTime, 0) / metrics.length)
     : 0;
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-error mx-auto mb-4" />
+          <p className="text-lg font-medium text-foreground">Failed to load analytics data</p>
+          <p className="text-sm text-muted-foreground mt-2">Please try refreshing the page</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

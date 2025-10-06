@@ -4,25 +4,28 @@ import DeliveryMap from '@/components/DeliveryMap';
 import AlertCard from '@/components/AlertCard';
 import DeliveryTable from '@/components/DeliveryTable';
 import DelayHeatmap from '@/components/DelayHeatmap';
-import { Package, TrendingUp, Users, Clock } from 'lucide-react';
+import { Package, TrendingUp, Users, Clock, Loader2, AlertCircle } from 'lucide-react';
 import type { Courier, Anomaly, Delivery, Zone } from '@shared/schema';
 
 export default function Dashboard() {
-  const { data: couriers = [] } = useQuery<Courier[]>({
+  const { data: couriers = [], isLoading: couriersLoading, error: couriersError } = useQuery<Courier[]>({
     queryKey: ['/api/couriers'],
   });
 
-  const { data: anomalies = [] } = useQuery<Anomaly[]>({
+  const { data: anomalies = [], isLoading: anomaliesLoading, error: anomaliesError } = useQuery<Anomaly[]>({
     queryKey: ['/api/anomalies/unresolved'],
   });
 
-  const { data: deliveries = [] } = useQuery<Delivery[]>({
+  const { data: deliveries = [], isLoading: deliveriesLoading, error: deliveriesError } = useQuery<Delivery[]>({
     queryKey: ['/api/deliveries'],
   });
 
-  const { data: zones = [] } = useQuery<Zone[]>({
+  const { data: zones = [], isLoading: zonesLoading, error: zonesError } = useQuery<Zone[]>({
     queryKey: ['/api/zones'],
   });
+
+  const isLoading = couriersLoading || anomaliesLoading || deliveriesLoading || zonesLoading;
+  const error = couriersError || anomaliesError || deliveriesError || zonesError;
 
   const totalDeliveries = deliveries.length;
   const onTimeDeliveries = deliveries.filter(d => d.status === 'on-time' || d.status === 'delivered').length;
@@ -41,6 +44,26 @@ export default function Dashboard() {
       status: d.status as 'on-time' | 'delayed' | 'in-transit' | 'delivered'
     };
   });
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-error mx-auto mb-4" />
+          <p className="text-lg font-medium text-foreground">Failed to load dashboard data</p>
+          <p className="text-sm text-muted-foreground mt-2">Please try refreshing the page</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
