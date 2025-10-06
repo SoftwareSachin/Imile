@@ -9,6 +9,12 @@ import {
   insertPerformanceMetricSchema,
   insertEtaPredictionSchema
 } from "@shared/schema";
+import multer from "multer";
+import * as XLSX from "xlsx";
+import Papa from "papaparse";
+import { randomUUID } from "crypto";
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Config route
@@ -371,6 +377,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid ETA prediction data" });
       }
       res.status(500).json({ error: "Failed to update ETA prediction" });
+    }
+  });
+
+  // File upload route
+  app.post("/api/upload-data", upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const { company } = req.body;
+      if (!company) {
+        return res.status(400).json({ error: "Company name is required" });
+      }
+
+      const fileBuffer = req.file.buffer;
+      const filename = req.file.originalname;
+      let data: any[] = [];
+
+      // Parse Excel files
+      if (filename.endsWith('.xlsx') || filename.endsWith('.xls')) {
+        const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+      } 
+      // Parse CSV files
+      else if (filename.endsWith('.csv')) {
+        const csvString = fileBuffer.toString('utf-8');
+        const parseResult = Papa.parse(csvString, { header: true, skipEmptyLines: true });
+        data = parseResult.data;
+      } 
+      else {
+        return res.status(400).json({ error: "Unsupported file format. Please upload CSV or Excel files." });
+      }
+
+      if (data.length === 0) {
+        return res.status(400).json({ error: "File contains no data" });
+      }
+
+      let couriersCreated = 0;
+      let deliveriesCreated = 0;
+      const errors: string[] = [];
+
+      // Process each row
+      for (const row of data) {
+        try {
+          // Check if row is for courier or delivery based on available fields
+          const isCourier = 'courierName' in row || 'courier_name' in row || 'name' in row;
+          const isDelivery = 'orderId' in row || 'order_id' in row;
+
+          if (isCourier && !isDelivery) {
+            // Create courier
+            const courierData = {
+              id: row.id || row.courierId || row.courier_id || randomUUID(),
+              name: row.name || row.courierName || row.courier_name || 'Unknown',
+              status: row.status || 'available',
+              lat: parseFloat(row.lat || row.latitude || '28.6139'),
+              lng: parseFloat(row.lng || row.longitude || '77.2090'),
+              activeDeliveries: parseInt(row.activeDeliveries || row.active_deliveries || '0'),
+              performanceScore: parseInt(row.performanceScore || row.performance_score || '85'),
+              location: row.location || row.area || 'Unknown',
+              vehicle: row.vehicle || 'bike',
+              phone: row.phone || row.phoneNumber || row.phone_number || null,
+              company: company
+            };
+            
+            const validated = insertCourierSchema.parse(courierData);
+            await storage.createCourier(validated);
+            couriersCreated++;
+          } else if (isDelivery) {
+            // Create delivery
+            const deliveryData = {
+              id: row.id || row.deliveryId || row.delivery_id || randomUUID(),
+              orderId: row.orderId || row.order_id || randomUUID(),
+              customerId: row.customerId || row.customer_id || randomUUID(),
+              customerName: row.customerName || row.customer_name || 'Unknown Customer',
+              address: row.address || row.deliveryAddress || row.delivery_address || 'Unknown Address',
+              lat: parseFloat(row.lat || row.latitude || row.delivery_lat || '28.6139'),
+              lng: parseFloat(row.lng || row.longitude || row.delivery_lng || '77.2090'),
+              courierId: row.courierId || row.courier_id || randomUUID(),
+              status: row.status || 'pending',
+              eta: row.eta || new Date(Date.now() + 30 * 60000).toISOString(),
+              actualDeliveryTime: row.actualDeliveryTime || row.actual_delivery_time || null,
+              pickupTime: row.pickupTime || row.pickup_time || null,
+              priority: row.priority || 'medium',
+              packageSize: row.packageSize || row.package_size || 'medium',
+              specialInstructions: row.specialInstructions || row.special_instructions || null,
+              company: company
+            };
+            
+            const validated = insertDeliverySchema.parse(deliveryData);
+            await storage.createDelivery(validated);
+            deliveriesCreated++;
+          }
+        } catch (error) {
+          errors.push(`Row error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Data imported successfully for ${company}`,
+        stats: {
+          couriersCreated,
+          deliveriesCreated,
+          errors: errors.length,
+          errorDetails: errors.slice(0, 5)
+        }
+      });
+    } catch (error) {
+      console.error('Upload error:', error);
+      res.status(500).json({ error: "Failed to process file" });
     }
   });
 
