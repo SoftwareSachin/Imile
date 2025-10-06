@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Card } from '@/components/ui/card';
+import { MapPin, AlertCircle } from 'lucide-react';
 import type { Courier } from '@shared/schema';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
@@ -25,23 +26,34 @@ export default function DeliveryMap({
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: center,
-      zoom: zoom,
-    });
+    try {
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: center,
+        zoom: zoom,
+      });
 
-    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-    map.current.addControl(new mapboxgl.FullscreenControl(), 'top-right');
+      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+      map.current.addControl(new mapboxgl.FullscreenControl(), 'top-right');
 
-    map.current.on('load', () => {
-      setMapLoaded(true);
-    });
+      map.current.on('load', () => {
+        setMapLoaded(true);
+      });
+
+      map.current.on('error', (e) => {
+        console.error('Mapbox error:', e);
+        setMapError('Map failed to load. Please check your connection or browser compatibility.');
+      });
+    } catch (error) {
+      console.error('Map initialization error:', error);
+      setMapError('Interactive map unavailable. WebGL support required.');
+    }
 
     return () => {
       markers.current.forEach(marker => marker.remove());
@@ -144,6 +156,38 @@ export default function DeliveryMap({
       map.current.fitBounds(bounds, { padding: 50, maxZoom: 15 });
     }
   }, [couriers, mapLoaded, onCourierClick]);
+
+  if (mapError) {
+    return (
+      <Card className="overflow-hidden" data-testid="delivery-map">
+        <div className={`${height} flex items-center justify-center bg-muted/50`}>
+          <div className="text-center p-6 max-w-md">
+            <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-sm font-medium text-foreground mb-2">{mapError}</p>
+            {couriers.length > 0 && (
+              <div className="mt-4 text-left">
+                <p className="text-xs text-muted-foreground mb-2">Active Couriers:</p>
+                {couriers.slice(0, 3).map(courier => (
+                  <div key={courier.id} className="flex items-start gap-2 mb-2">
+                    <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
+                    <div className="text-xs">
+                      <p className="font-medium">{courier.name}</p>
+                      <p className="text-muted-foreground">{courier.location}</p>
+                    </div>
+                  </div>
+                ))}
+                {couriers.length > 3 && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    +{couriers.length - 3} more couriers
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <>
