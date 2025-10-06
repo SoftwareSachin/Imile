@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { LayoutDashboard, BarChart3, Users, MapPin, Bell } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Users, MapPin, Bell, Upload } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -16,6 +16,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     { name: 'Analytics', path: '/analytics', icon: BarChart3 },
     { name: 'Couriers', path: '/couriers', icon: Users },
     { name: 'Tracking', path: '/tracking', icon: MapPin },
+    { name: 'Upload', path: '/upload', icon: Upload },
   ];
 
   const isActive = (path: string) => {

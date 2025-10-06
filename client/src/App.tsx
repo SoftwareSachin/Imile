@@ -8,6 +8,7 @@ import Dashboard from "@/pages/Dashboard";
 import Analytics from "@/pages/Analytics";
 import Couriers from "@/pages/Couriers";
 import Tracking from "@/pages/Tracking";
+import DataUpload from "@/pages/DataUpload";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/analytics" component={Analytics} />
       <Route path="/couriers" component={Couriers} />
       <Route path="/tracking" component={Tracking} />
+      <Route path="/upload" component={DataUpload} />
       <Route component={NotFound} />
     </Switch>
   );
