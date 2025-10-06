@@ -1,6 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { storage } from "./storage";
+import { seedDatabase } from "./seed-data";
 
 const app = express();
 app.use(express.json());
@@ -37,6 +39,13 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  const couriers = await storage.getAllCouriers();
+  if (couriers.length === 0) {
+    log("Database is empty, seeding with initial data...");
+    await seedDatabase();
+    log("Database seeding completed!");
+  }
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

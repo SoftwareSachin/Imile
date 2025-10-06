@@ -5,24 +5,25 @@ import {
   type Anomaly, type InsertAnomaly,
   type Zone, type InsertZone,
   type PerformanceMetric, type InsertPerformanceMetric,
-  type EtaPrediction, type InsertEtaPrediction
+  type EtaPrediction, type InsertEtaPrediction,
+  users, couriers, deliveries, anomalies, zones, performanceMetrics, etaPredictions
 } from "@shared/schema";
+import { drizzle } from "drizzle-orm/neon-http";
+import { neon } from "@neondatabase/serverless";
+import { eq, and, gte, lte } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
-  // User methods
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   
-  // Courier methods
   getCourier(id: string): Promise<Courier | undefined>;
   getAllCouriers(): Promise<Courier[]>;
   createCourier(courier: InsertCourier): Promise<Courier>;
   updateCourier(id: string, courier: Partial<Courier>): Promise<Courier | undefined>;
   deleteCourier(id: string): Promise<boolean>;
   
-  // Delivery methods
   getDelivery(id: string): Promise<Delivery | undefined>;
   getAllDeliveries(): Promise<Delivery[]>;
   getDeliveriesByCourier(courierId: string): Promise<Delivery[]>;
@@ -30,7 +31,6 @@ export interface IStorage {
   updateDelivery(id: string, delivery: Partial<Delivery>): Promise<Delivery | undefined>;
   deleteDelivery(id: string): Promise<boolean>;
   
-  // Anomaly methods
   getAnomaly(id: string): Promise<Anomaly | undefined>;
   getAllAnomalies(): Promise<Anomaly[]>;
   getUnresolvedAnomalies(): Promise<Anomaly[]>;
@@ -38,254 +38,200 @@ export interface IStorage {
   updateAnomaly(id: string, anomaly: Partial<Anomaly>): Promise<Anomaly | undefined>;
   deleteAnomaly(id: string): Promise<boolean>;
   
-  // Zone methods
   getZone(id: string): Promise<Zone | undefined>;
   getAllZones(): Promise<Zone[]>;
   createZone(zone: InsertZone): Promise<Zone>;
   updateZone(id: string, zone: Partial<Zone>): Promise<Zone | undefined>;
   deleteZone(id: string): Promise<boolean>;
   
-  // Performance metrics methods
   getPerformanceMetric(id: string): Promise<PerformanceMetric | undefined>;
   getAllPerformanceMetrics(): Promise<PerformanceMetric[]>;
   getPerformanceMetricsByDateRange(startDate: string, endDate: string): Promise<PerformanceMetric[]>;
   createPerformanceMetric(metric: InsertPerformanceMetric): Promise<PerformanceMetric>;
   
-  // ETA prediction methods
   getEtaPrediction(id: string): Promise<EtaPrediction | undefined>;
   getEtaPredictionByDelivery(deliveryId: string): Promise<EtaPrediction | undefined>;
   createEtaPrediction(prediction: InsertEtaPrediction): Promise<EtaPrediction>;
   updateEtaPrediction(id: string, prediction: Partial<EtaPrediction>): Promise<EtaPrediction | undefined>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private couriers: Map<string, Courier>;
-  private deliveries: Map<string, Delivery>;
-  private anomalies: Map<string, Anomaly>;
-  private zones: Map<string, Zone>;
-  private performanceMetrics: Map<string, PerformanceMetric>;
-  private etaPredictions: Map<string, EtaPrediction>;
+export class PostgresStorage implements IStorage {
+  private db;
 
   constructor() {
-    this.users = new Map();
-    this.couriers = new Map();
-    this.deliveries = new Map();
-    this.anomalies = new Map();
-    this.zones = new Map();
-    this.performanceMetrics = new Map();
-    this.etaPredictions = new Map();
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL is not set");
+    }
+    const sql = neon(process.env.DATABASE_URL);
+    this.db = drizzle(sql);
   }
 
-  // User methods
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const result = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
+    return result[0];
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const result = await this.db.select().from(users).where(eq(users.username, username)).limit(1);
+    return result[0];
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+    const result = await this.db.insert(users).values(insertUser).returning();
+    return result[0];
   }
 
-  // Courier methods
   async getCourier(id: string): Promise<Courier | undefined> {
-    return this.couriers.get(id);
+    const result = await this.db.select().from(couriers).where(eq(couriers.id, id)).limit(1);
+    return result[0];
   }
 
   async getAllCouriers(): Promise<Courier[]> {
-    return Array.from(this.couriers.values());
+    return await this.db.select().from(couriers);
   }
 
   async createCourier(insertCourier: InsertCourier): Promise<Courier> {
     const id = randomUUID();
-    const courier: Courier = { 
-      id, 
-      ...insertCourier,
-      vehicle: insertCourier.vehicle ?? null,
-      phone: insertCourier.phone ?? null
-    };
-    this.couriers.set(id, courier);
-    return courier;
+    const result = await this.db.insert(couriers).values({ id, ...insertCourier }).returning();
+    return result[0];
   }
 
   async updateCourier(id: string, updates: Partial<Courier>): Promise<Courier | undefined> {
-    const courier = this.couriers.get(id);
-    if (!courier) return undefined;
-    const updated = { ...courier, ...updates };
-    this.couriers.set(id, updated);
-    return updated;
+    const result = await this.db.update(couriers).set(updates).where(eq(couriers.id, id)).returning();
+    return result[0];
   }
 
   async deleteCourier(id: string): Promise<boolean> {
-    return this.couriers.delete(id);
+    const result = await this.db.delete(couriers).where(eq(couriers.id, id)).returning();
+    return result.length > 0;
   }
 
-  // Delivery methods
   async getDelivery(id: string): Promise<Delivery | undefined> {
-    return this.deliveries.get(id);
+    const result = await this.db.select().from(deliveries).where(eq(deliveries.id, id)).limit(1);
+    return result[0];
   }
 
   async getAllDeliveries(): Promise<Delivery[]> {
-    return Array.from(this.deliveries.values());
+    return await this.db.select().from(deliveries);
   }
 
   async getDeliveriesByCourier(courierId: string): Promise<Delivery[]> {
-    return Array.from(this.deliveries.values()).filter(d => d.courierId === courierId);
+    return await this.db.select().from(deliveries).where(eq(deliveries.courierId, courierId));
   }
 
   async createDelivery(insertDelivery: InsertDelivery): Promise<Delivery> {
     const id = randomUUID();
-    const delivery: Delivery = { 
-      id, 
-      ...insertDelivery,
-      actualDeliveryTime: insertDelivery.actualDeliveryTime ?? null,
-      pickupTime: insertDelivery.pickupTime ?? null,
-      packageSize: insertDelivery.packageSize ?? null,
-      specialInstructions: insertDelivery.specialInstructions ?? null
-    };
-    this.deliveries.set(id, delivery);
-    return delivery;
+    const result = await this.db.insert(deliveries).values({ id, ...insertDelivery }).returning();
+    return result[0];
   }
 
   async updateDelivery(id: string, updates: Partial<Delivery>): Promise<Delivery | undefined> {
-    const delivery = this.deliveries.get(id);
-    if (!delivery) return undefined;
-    const updated = { ...delivery, ...updates };
-    this.deliveries.set(id, updated);
-    return updated;
+    const result = await this.db.update(deliveries).set(updates).where(eq(deliveries.id, id)).returning();
+    return result[0];
   }
 
   async deleteDelivery(id: string): Promise<boolean> {
-    return this.deliveries.delete(id);
+    const result = await this.db.delete(deliveries).where(eq(deliveries.id, id)).returning();
+    return result.length > 0;
   }
 
-  // Anomaly methods
   async getAnomaly(id: string): Promise<Anomaly | undefined> {
-    return this.anomalies.get(id);
+    const result = await this.db.select().from(anomalies).where(eq(anomalies.id, id)).limit(1);
+    return result[0];
   }
 
   async getAllAnomalies(): Promise<Anomaly[]> {
-    return Array.from(this.anomalies.values());
+    return await this.db.select().from(anomalies);
   }
 
   async getUnresolvedAnomalies(): Promise<Anomaly[]> {
-    return Array.from(this.anomalies.values()).filter(a => !a.resolved);
+    return await this.db.select().from(anomalies).where(eq(anomalies.resolved, false));
   }
 
   async createAnomaly(insertAnomaly: InsertAnomaly): Promise<Anomaly> {
     const id = randomUUID();
-    const anomaly: Anomaly = { 
-      id, 
-      ...insertAnomaly,
-      deliveryId: insertAnomaly.deliveryId ?? null,
-      orderId: insertAnomaly.orderId ?? null,
-      rootCause: insertAnomaly.rootCause ?? null,
-      resolution: insertAnomaly.resolution ?? null
-    };
-    this.anomalies.set(id, anomaly);
-    return anomaly;
+    const result = await this.db.insert(anomalies).values({ id, ...insertAnomaly }).returning();
+    return result[0];
   }
 
   async updateAnomaly(id: string, updates: Partial<Anomaly>): Promise<Anomaly | undefined> {
-    const anomaly = this.anomalies.get(id);
-    if (!anomaly) return undefined;
-    const updated = { ...anomaly, ...updates };
-    this.anomalies.set(id, updated);
-    return updated;
+    const result = await this.db.update(anomalies).set(updates).where(eq(anomalies.id, id)).returning();
+    return result[0];
   }
 
   async deleteAnomaly(id: string): Promise<boolean> {
-    return this.anomalies.delete(id);
+    const result = await this.db.delete(anomalies).where(eq(anomalies.id, id)).returning();
+    return result.length > 0;
   }
 
-  // Zone methods
   async getZone(id: string): Promise<Zone | undefined> {
-    return this.zones.get(id);
+    const result = await this.db.select().from(zones).where(eq(zones.id, id)).limit(1);
+    return result[0];
   }
 
   async getAllZones(): Promise<Zone[]> {
-    return Array.from(this.zones.values());
+    return await this.db.select().from(zones);
   }
 
   async createZone(insertZone: InsertZone): Promise<Zone> {
     const id = randomUUID();
-    const zone: Zone = { id, ...insertZone };
-    this.zones.set(id, zone);
-    return zone;
+    const result = await this.db.insert(zones).values({ id, ...insertZone }).returning();
+    return result[0];
   }
 
   async updateZone(id: string, updates: Partial<Zone>): Promise<Zone | undefined> {
-    const zone = this.zones.get(id);
-    if (!zone) return undefined;
-    const updated = { ...zone, ...updates };
-    this.zones.set(id, updated);
-    return updated;
+    const result = await this.db.update(zones).set(updates).where(eq(zones.id, id)).returning();
+    return result[0];
   }
 
   async deleteZone(id: string): Promise<boolean> {
-    return this.zones.delete(id);
+    const result = await this.db.delete(zones).where(eq(zones.id, id)).returning();
+    return result.length > 0;
   }
 
-  // Performance metrics methods
   async getPerformanceMetric(id: string): Promise<PerformanceMetric | undefined> {
-    return this.performanceMetrics.get(id);
+    const result = await this.db.select().from(performanceMetrics).where(eq(performanceMetrics.id, id)).limit(1);
+    return result[0];
   }
 
   async getAllPerformanceMetrics(): Promise<PerformanceMetric[]> {
-    return Array.from(this.performanceMetrics.values());
+    return await this.db.select().from(performanceMetrics);
   }
 
   async getPerformanceMetricsByDateRange(startDate: string, endDate: string): Promise<PerformanceMetric[]> {
-    return Array.from(this.performanceMetrics.values()).filter(
-      m => m.date >= startDate && m.date <= endDate
-    );
+    return await this.db.select().from(performanceMetrics)
+      .where(and(
+        gte(performanceMetrics.date, startDate),
+        lte(performanceMetrics.date, endDate)
+      ));
   }
 
   async createPerformanceMetric(insertMetric: InsertPerformanceMetric): Promise<PerformanceMetric> {
     const id = randomUUID();
-    const metric: PerformanceMetric = { id, ...insertMetric };
-    this.performanceMetrics.set(id, metric);
-    return metric;
+    const result = await this.db.insert(performanceMetrics).values({ id, ...insertMetric }).returning();
+    return result[0];
   }
 
-  // ETA prediction methods
   async getEtaPrediction(id: string): Promise<EtaPrediction | undefined> {
-    return this.etaPredictions.get(id);
+    const result = await this.db.select().from(etaPredictions).where(eq(etaPredictions.id, id)).limit(1);
+    return result[0];
   }
 
   async getEtaPredictionByDelivery(deliveryId: string): Promise<EtaPrediction | undefined> {
-    return Array.from(this.etaPredictions.values()).find(p => p.deliveryId === deliveryId);
+    const result = await this.db.select().from(etaPredictions).where(eq(etaPredictions.deliveryId, deliveryId)).limit(1);
+    return result[0];
   }
 
   async createEtaPrediction(insertPrediction: InsertEtaPrediction): Promise<EtaPrediction> {
     const id = randomUUID();
-    const prediction: EtaPrediction = { 
-      id, 
-      ...insertPrediction,
-      factors: insertPrediction.factors ?? null,
-      trafficImpact: insertPrediction.trafficImpact ?? null,
-      weatherImpact: insertPrediction.weatherImpact ?? null,
-      historicalAccuracy: insertPrediction.historicalAccuracy ?? null
-    };
-    this.etaPredictions.set(id, prediction);
-    return prediction;
+    const result = await this.db.insert(etaPredictions).values({ id, ...insertPrediction }).returning();
+    return result[0];
   }
 
   async updateEtaPrediction(id: string, updates: Partial<EtaPrediction>): Promise<EtaPrediction | undefined> {
-    const prediction = this.etaPredictions.get(id);
-    if (!prediction) return undefined;
-    const updated = { ...prediction, ...updates };
-    this.etaPredictions.set(id, updated);
-    return updated;
+    const result = await this.db.update(etaPredictions).set(updates).where(eq(etaPredictions.id, id)).returning();
+    return result[0];
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new PostgresStorage();
