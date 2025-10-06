@@ -11,6 +11,17 @@ import {
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Config route
+  app.get("/api/config", async (_req, res) => {
+    try {
+      res.json({
+        mapboxToken: process.env.MAPBOX_ACCESS_TOKEN || ''
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch config" });
+    }
+  });
+
   // Courier routes
   app.get("/api/couriers", async (_req, res) => {
     try {

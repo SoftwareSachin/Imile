@@ -5,8 +5,6 @@ import { Card } from '@/components/ui/card';
 import { MapPin, AlertCircle } from 'lucide-react';
 import type { Courier } from '@shared/schema';
 
-mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
-
 interface DeliveryMapProps {
   couriers?: Courier[];
   height?: string;
@@ -27,9 +25,27 @@ export default function DeliveryMap({
   const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+  const [tokenLoaded, setTokenLoaded] = useState(false);
 
   useEffect(() => {
-    if (!mapContainer.current || map.current) return;
+    fetch('/api/config')
+      .then(res => res.json())
+      .then(config => {
+        if (config.mapboxToken) {
+          mapboxgl.accessToken = config.mapboxToken;
+          setTokenLoaded(true);
+        } else {
+          setMapError('Mapbox token not configured');
+        }
+      })
+      .catch(error => {
+        console.error('Failed to load config:', error);
+        setMapError('Failed to load map configuration');
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!mapContainer.current || map.current || !tokenLoaded) return;
 
     try {
       map.current = new mapboxgl.Map({
@@ -61,7 +77,7 @@ export default function DeliveryMap({
       map.current?.remove();
       map.current = null;
     };
-  }, [center, zoom]);
+  }, [center, zoom, tokenLoaded]);
 
   useEffect(() => {
     if (!map.current || !mapLoaded) return;
