@@ -1,46 +1,67 @@
+import { useQuery } from '@tanstack/react-query';
 import PerformanceChart from '@/components/PerformanceChart';
 import KPICard from '@/components/KPICard';
 import { TrendingUp, AlertTriangle, Target, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
+import type { PerformanceMetric, Delivery, Anomaly } from '@shared/schema';
 
 export default function Analytics() {
-  const onTimeData = [
-    { name: 'Mon', value: 92 },
-    { name: 'Tue', value: 94 },
-    { name: 'Wed', value: 91 },
-    { name: 'Thu', value: 95 },
-    { name: 'Fri', value: 93 },
-    { name: 'Sat', value: 89 },
-    { name: 'Sun', value: 88 },
-  ];
+  const { data: metrics = [] } = useQuery<PerformanceMetric[]>({
+    queryKey: ['/api/metrics'],
+  });
 
-  const failureData = [
-    { name: 'Traffic', value: 45 },
-    { name: 'Address Issue', value: 28 },
-    { name: 'Customer Unavailable', value: 18 },
-    { name: 'Courier Delay', value: 9 },
-  ];
+  const { data: deliveries = [] } = useQuery<Delivery[]>({
+    queryKey: ['/api/deliveries'],
+  });
+
+  const { data: anomalies = [] } = useQuery<Anomaly[]>({
+    queryKey: ['/api/anomalies'],
+  });
+
+  const totalDeliveries = deliveries.length;
+  const onTimeDeliveries = deliveries.filter(d => d.status === 'on-time' || d.status === 'delivered').length;
+  const delayedDeliveries = deliveries.filter(d => d.status === 'delayed').length;
+  const failedDeliveries = deliveries.filter(d => d.status === 'failed').length;
+  
+  const onTimeRate = totalDeliveries > 0 ? ((onTimeDeliveries / totalDeliveries) * 100).toFixed(1) : '0.0';
+
+  const onTimeData = metrics.slice(0, 7).map(m => ({
+    name: new Date(m.date).toLocaleDateString('en-US', { weekday: 'short' }),
+    value: m.totalDeliveries > 0 ? Math.round((m.onTimeDeliveries / m.totalDeliveries) * 100) : 0
+  }));
+
+  const anomalyTypes = anomalies.reduce((acc, a) => {
+    acc[a.type] = (acc[a.type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const failureData = Object.entries(anomalyTypes).map(([name, value]) => ({
+    name: name.charAt(0).toUpperCase() + name.slice(1).replace('-', ' '),
+    value
+  }));
 
   const statusData = [
-    { name: 'Delivered', value: 876 },
-    { name: 'In Transit', value: 234 },
-    { name: 'Delayed', value: 87 },
-    { name: 'Failed', value: 24 },
+    { name: 'Delivered', value: deliveries.filter(d => d.status === 'delivered').length },
+    { name: 'In Transit', value: deliveries.filter(d => d.status === 'in-transit').length },
+    { name: 'Delayed', value: delayedDeliveries },
+    { name: 'On Time', value: deliveries.filter(d => d.status === 'on-time').length },
   ];
 
-  const etaAccuracyData = [
-    { name: 'Week 1', value: 3.8 },
-    { name: 'Week 2', value: 3.5 },
-    { name: 'Week 3', value: 3.3 },
-    { name: 'Week 4', value: 3.2 },
-  ];
+  const etaAccuracyData = metrics.slice(0, 4).map((m, i) => ({
+    name: `Week ${i + 1}`,
+    value: m.avgEtaAccuracy || 0
+  }));
+
+  const avgDeliveryTime = metrics.length > 0
+    ? Math.round(metrics.reduce((sum, m) => sum + m.avgDeliveryTime, 0) / metrics.length)
+    : 0;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-foreground mb-2">Performance Analytics</h1>
+          <h1 className="text-3xl font-semibold text-foreground mb-2" data-testid="text-analytics-title">Performance Analytics</h1>
           <p className="text-muted-foreground">Track delivery metrics and identify improvement opportunities</p>
         </div>
         <Button data-testid="button-export-data">
@@ -52,29 +73,29 @@ export default function Analytics() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <KPICard
           title="Avg On-Time Rate"
-          value="92.1%"
-          change={{ value: "1.5% from last month", isPositive: true }}
+          value={`${onTimeRate}%`}
+          change={{ value: "Real-time data", isPositive: true }}
           icon={TrendingUp}
           iconColor="text-success"
         />
         <KPICard
           title="Failed Deliveries"
-          value="24"
-          change={{ value: "8 fewer than last week", isPositive: true }}
+          value={failedDeliveries.toString()}
+          change={{ value: "Live tracking", isPositive: true }}
           icon={AlertTriangle}
           iconColor="text-error"
         />
         <KPICard
-          title="ETA Accuracy"
-          value="±3.2 min"
-          change={{ value: "0.6 min improvement", isPositive: true }}
+          title="Total Anomalies"
+          value={anomalies.length.toString()}
+          change={{ value: "Active monitoring", isPositive: false }}
           icon={Target}
           iconColor="text-info"
         />
         <KPICard
           title="Avg Delivery Time"
-          value="42 min"
-          change={{ value: "3 min faster", isPositive: true }}
+          value={`${avgDeliveryTime} min`}
+          change={{ value: "Calculated from metrics", isPositive: true }}
           icon={Clock}
           iconColor="text-warning"
         />
@@ -88,9 +109,9 @@ export default function Analytics() {
           dataKey="value" 
         />
         <PerformanceChart 
-          title="Failure Reasons (Last 7 Days)" 
+          title="Anomaly Types" 
           type="bar" 
-          data={failureData} 
+          data={failureData.length > 0 ? failureData : [{ name: 'No data', value: 0 }]} 
           dataKey="value" 
         />
       </div>
@@ -105,7 +126,7 @@ export default function Analytics() {
         <PerformanceChart 
           title="ETA Accuracy Trend (±Minutes)" 
           type="line" 
-          data={etaAccuracyData} 
+          data={etaAccuracyData.length > 0 ? etaAccuracyData : [{ name: 'No data', value: 0 }]} 
           dataKey="value" 
         />
       </div>
