@@ -33,21 +33,24 @@ export class ETAEngine {
   }
 
   private getWeatherFactor(hour: number, month: number): number {
-    // Deterministic weather factor based on time and season
+    // Deterministic weather factor based on time and season (month: 0=Jan, 11=Dec)
     // Early morning (0-6) and late evening (20-24): slight impact (dew, reduced visibility)
     if (hour < 6 || hour >= 20) return 1.1;
     
-    // Winter months (Nov-Feb): moderate impact
-    if (month >= 10 || month <= 1) return 1.2;
+    // Winter months (Dec, Jan, Feb): moderate impact
+    if (month === 11 || month === 0 || month === 1) return 1.2;
     
-    // Rainy season (Mar-May): higher impact
+    // Rainy season (Mar, Apr, May): higher impact
     if (month >= 2 && month <= 4) return 1.3;
     
-    // Summer (Jun-Aug): clear conditions
+    // Summer (Jun, Jul, Aug): clear conditions
     if (month >= 5 && month <= 7) return 1.0;
     
-    // Fall (Sep-Oct): slight impact
-    return 1.1;
+    // Fall (Sep, Oct, Nov): slight impact
+    if (month >= 8 && month <= 10) return 1.1;
+    
+    // Default fallback
+    return 1.0;
   }
 
   private getCourierPerformanceFactor(performanceScore: number): number {
