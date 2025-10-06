@@ -1,108 +1,172 @@
+import { useEffect, useRef, useState } from 'react';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 import { Card } from '@/components/ui/card';
-import { MapPin, Navigation } from 'lucide-react';
+import type { Courier } from '@shared/schema';
 
-interface CourierMarker {
-  id: string;
-  name: string;
-  lat: number;
-  lng: number;
-  status: 'active' | 'idle';
-}
+mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
 interface DeliveryMapProps {
-  couriers?: CourierMarker[];
+  couriers?: Courier[];
   height?: string;
+  center?: [number, number];
+  zoom?: number;
+  onCourierClick?: (courier: Courier) => void;
 }
 
-export default function DeliveryMap({ couriers = [], height = 'h-96' }: DeliveryMapProps) {
+export default function DeliveryMap({ 
+  couriers = [], 
+  height = 'h-96',
+  center = [-122.4194, 37.7749],
+  zoom = 12,
+  onCourierClick
+}: DeliveryMapProps) {
+  const mapContainer = useRef<HTMLDivElement>(null);
+  const map = useRef<mapboxgl.Map | null>(null);
+  const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());
+  const [mapLoaded, setMapLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!mapContainer.current || map.current) return;
+
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: center,
+      zoom: zoom,
+    });
+
+    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+    map.current.addControl(new mapboxgl.FullscreenControl(), 'top-right');
+
+    map.current.on('load', () => {
+      setMapLoaded(true);
+    });
+
+    return () => {
+      markers.current.forEach(marker => marker.remove());
+      markers.current.clear();
+      map.current?.remove();
+      map.current = null;
+    };
+  }, [center, zoom]);
+
+  useEffect(() => {
+    if (!map.current || !mapLoaded) return;
+
+    const existingMarkerIds = new Set(markers.current.keys());
+    const currentCourierIds = new Set(couriers.map(c => c.id));
+
+    markers.current.forEach((marker, id) => {
+      if (!currentCourierIds.has(id)) {
+        marker.remove();
+        markers.current.delete(id);
+      }
+    });
+
+    couriers.forEach(courier => {
+      const existingMarker = markers.current.get(courier.id);
+
+      if (existingMarker) {
+        existingMarker.setLngLat([courier.lng, courier.lat]);
+        
+        const element = existingMarker.getElement();
+        element.className = courier.status === 'active' 
+          ? 'courier-marker courier-marker-active'
+          : 'courier-marker courier-marker-idle';
+      } else {
+        const el = document.createElement('div');
+        el.className = courier.status === 'active' 
+          ? 'courier-marker courier-marker-active'
+          : 'courier-marker courier-marker-idle';
+        
+        el.innerHTML = `
+          <div class="relative">
+            <div class="w-10 h-10 rounded-full border-3 border-white shadow-lg flex items-center justify-center ${
+              courier.status === 'active' ? 'bg-blue-500 animate-pulse' : 'bg-gray-400'
+            }">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              </svg>
+            </div>
+            ${courier.status === 'active' ? '<div class="absolute inset-0 rounded-full bg-blue-500 opacity-30 animate-ping"></div>' : ''}
+          </div>
+        `;
+
+        const popup = new mapboxgl.Popup({ 
+          offset: 25,
+          closeButton: false,
+          closeOnClick: false
+        }).setHTML(`
+          <div class="p-3">
+            <p class="font-semibold text-sm mb-1">${courier.name}</p>
+            <p class="text-xs text-gray-600 capitalize mb-1">${courier.status}</p>
+            <p class="text-xs text-gray-500">${courier.location}</p>
+            <div class="mt-2 pt-2 border-t border-gray-200">
+              <p class="text-xs"><span class="font-medium">Active Deliveries:</span> ${courier.activeDeliveries}</p>
+              <p class="text-xs"><span class="font-medium">Performance:</span> ${courier.performanceScore}%</p>
+            </div>
+          </div>
+        `);
+
+        const marker = new mapboxgl.Marker({
+          element: el,
+          anchor: 'bottom'
+        })
+          .setLngLat([courier.lng, courier.lat])
+          .setPopup(popup)
+          .addTo(map.current!);
+
+        el.addEventListener('click', () => {
+          if (onCourierClick) {
+            onCourierClick(courier);
+          }
+        });
+
+        el.addEventListener('mouseenter', () => {
+          marker.togglePopup();
+        });
+
+        el.addEventListener('mouseleave', () => {
+          marker.togglePopup();
+        });
+
+        markers.current.set(courier.id, marker);
+      }
+    });
+
+    if (couriers.length > 0 && map.current) {
+      const bounds = new mapboxgl.LngLatBounds();
+      couriers.forEach(courier => {
+        bounds.extend([courier.lng, courier.lat]);
+      });
+      map.current.fitBounds(bounds, { padding: 50, maxZoom: 15 });
+    }
+  }, [couriers, mapLoaded, onCourierClick]);
+
   return (
-    <Card className="overflow-hidden relative">
-      <div 
-        className={`${height} bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 relative`}
-        data-testid="delivery-map"
-      >
-        <div className="absolute inset-0 opacity-10">
-          <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="1"/>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-          </svg>
-        </div>
-
-        <div className="absolute top-4 left-4 bg-background/90 backdrop-blur-sm px-3 py-2 rounded-md shadow-sm border">
-          <div className="flex items-center gap-2">
-            <Navigation className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium">San Francisco, CA</span>
-          </div>
-        </div>
-
-        <div className="absolute top-4 right-4 flex flex-col gap-2">
-          <button className="bg-background/90 backdrop-blur-sm p-2 rounded-md shadow-sm border hover-elevate" data-testid="button-zoom-in">
-            <span className="text-sm font-bold">+</span>
-          </button>
-          <button className="bg-background/90 backdrop-blur-sm p-2 rounded-md shadow-sm border hover-elevate" data-testid="button-zoom-out">
-            <span className="text-sm font-bold">−</span>
-          </button>
-        </div>
-
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="relative w-4/5 h-4/5">
-            {couriers.map((courier, index) => {
-              const positions = [
-                { top: '20%', left: '30%' },
-                { top: '40%', left: '60%' },
-                { top: '60%', left: '25%' },
-                { top: '35%', left: '70%' },
-                { top: '70%', left: '50%' },
-              ];
-              const position = positions[index % positions.length];
-              
-              return (
-                <div
-                  key={courier.id}
-                  className="absolute transform -translate-x-1/2 -translate-y-1/2 group cursor-pointer"
-                  style={{ top: position.top, left: position.left }}
-                  data-testid={`marker-courier-${courier.id}`}
-                >
-                  <div className={`relative ${courier.status === 'active' ? 'animate-pulse' : ''}`}>
-                    <div className={`w-6 h-6 rounded-full border-2 border-white shadow-lg flex items-center justify-center ${
-                      courier.status === 'active' ? 'bg-blue-500' : 'bg-gray-400'
-                    }`}>
-                      <MapPin className="w-4 h-4 text-white" />
-                    </div>
-                    {courier.status === 'active' && (
-                      <div className="absolute inset-0 rounded-full bg-blue-500 opacity-30 animate-ping" />
-                    )}
-                  </div>
-                  
-                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <div className="bg-background border shadow-lg rounded-md px-3 py-2 whitespace-nowrap">
-                      <p className="font-medium text-sm">{courier.name}</p>
-                      <p className="text-xs text-muted-foreground capitalize">{courier.status}</p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="absolute bottom-4 left-4 bg-background/90 backdrop-blur-sm px-4 py-3 rounded-md shadow-sm border">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-              <span className="text-xs text-muted-foreground">Active</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-gray-400"></div>
-              <span className="text-xs text-muted-foreground">Idle</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Card>
+    <>
+      <style>{`
+        .courier-marker {
+          cursor: pointer;
+          transition: transform 0.2s ease;
+        }
+        .courier-marker:hover {
+          transform: scale(1.1);
+        }
+        .mapboxgl-popup-content {
+          padding: 0;
+          border-radius: 8px;
+          box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .mapboxgl-popup-tip {
+          display: none;
+        }
+      `}</style>
+      <Card className="overflow-hidden" data-testid="delivery-map">
+        <div ref={mapContainer} className={height} />
+      </Card>
+    </>
   );
 }
