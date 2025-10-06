@@ -14,7 +14,28 @@ import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import { randomUUID } from "crypto";
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024
+  },
+  fileFilter: (_req, file, cb) => {
+    const allowedMimeTypes = [
+      'text/csv',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/csv',
+      'text/x-csv',
+      'application/x-csv'
+    ];
+    
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only CSV and Excel files are allowed.'));
+    }
+  }
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Config route
@@ -381,11 +402,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // File upload route
-  app.post("/api/upload-data", upload.single('file'), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: "No file uploaded" });
+  app.post("/api/upload-data", (req, res) => {
+    upload.single('file')(req, res, async (err) => {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: "File too large. Maximum size is 10MB." });
+        }
+        return res.status(400).json({ error: `Upload error: ${err.message}` });
+      } else if (err) {
+        return res.status(400).json({ error: err.message });
       }
+      
+      try {
+        if (!req.file) {
+          return res.status(400).json({ error: "No file uploaded" });
+        }
 
       const { company } = req.body;
       if (!company) {
@@ -476,20 +507,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      res.json({
-        success: true,
-        message: `Data imported successfully for ${company}`,
-        stats: {
-          couriersCreated,
-          deliveriesCreated,
-          errors: errors.length,
-          errorDetails: errors.slice(0, 5)
-        }
-      });
-    } catch (error) {
-      console.error('Upload error:', error);
-      res.status(500).json({ error: "Failed to process file" });
-    }
+        res.json({
+          success: true,
+          message: `Data imported successfully for ${company}`,
+          stats: {
+            couriersCreated,
+            deliveriesCreated,
+            errors: errors.length,
+            errorDetails: errors.slice(0, 5)
+          }
+        });
+      } catch (error) {
+        console.error('Upload error:', error);
+        res.status(500).json({ error: "Failed to process file" });
+      }
+    });
   });
 
   const httpServer = createServer(app);
