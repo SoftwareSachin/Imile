@@ -32,11 +32,22 @@ export class ETAEngine {
     return 1.0;
   }
 
-  private getWeatherFactor(): number {
-    const conditions = ['clear', 'cloudy', 'rainy', 'heavy_rain'];
-    const factors = [1.0, 1.1, 1.3, 1.6];
-    const randomIndex = Math.floor(Math.random() * conditions.length);
-    return factors[randomIndex];
+  private getWeatherFactor(hour: number, month: number): number {
+    // Deterministic weather factor based on time and season
+    // Early morning (0-6) and late evening (20-24): slight impact (dew, reduced visibility)
+    if (hour < 6 || hour >= 20) return 1.1;
+    
+    // Winter months (Nov-Feb): moderate impact
+    if (month >= 10 || month <= 1) return 1.2;
+    
+    // Rainy season (Mar-May): higher impact
+    if (month >= 2 && month <= 4) return 1.3;
+    
+    // Summer (Jun-Aug): clear conditions
+    if (month >= 5 && month <= 7) return 1.0;
+    
+    // Fall (Sep-Oct): slight impact
+    return 1.1;
   }
 
   private getCourierPerformanceFactor(performanceScore: number): number {
@@ -66,9 +77,11 @@ export class ETAEngine {
       delivery.lng!
     );
 
-    const currentHour = new Date().getHours();
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMonth = now.getMonth();
     const trafficFactor = this.getTrafficFactor(currentHour);
-    const weatherFactor = this.getWeatherFactor();
+    const weatherFactor = this.getWeatherFactor(currentHour, currentMonth);
     const courierFactor = this.getCourierPerformanceFactor(courier.performanceScore);
 
     const avgSpeed = 25;
@@ -118,9 +131,11 @@ export class ETAEngine {
       destLng
     );
 
-    const currentHour = new Date().getHours();
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMonth = now.getMonth();
     const trafficFactor = this.getTrafficFactor(currentHour);
-    const weatherFactor = this.getWeatherFactor();
+    const weatherFactor = this.getWeatherFactor(currentHour, currentMonth);
     const courierFactor = this.getCourierPerformanceFactor(courier.performanceScore);
 
     const avgSpeed = 25;
