@@ -28,11 +28,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <header className="sticky top-0 z-50 border-b bg-background">
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2 hover-elevate rounded-md px-2 py-1" data-testid="link-logo">
-              <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
+            <Link href="/" className="flex items-center gap-3 hover-elevate rounded-md px-2 py-1" data-testid="link-logo">
+              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-sm">
                 <Package className="w-5 h-5 text-primary-foreground" />
               </div>
-              <span className="text-xl font-semibold">DeliveryOps</span>
+              <span className="text-2xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                Imile
+              </span>
             </Link>
             
             <nav className="hidden md:flex items-center gap-1">
