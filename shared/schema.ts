@@ -23,8 +23,8 @@ export const couriers = pgTable("couriers", {
   status: text("status").notNull(),
   lat: real("lat").notNull(),
   lng: real("lng").notNull(),
-  activeDeliveries: integer("active_deliveries").notNull().default(0),
-  performanceScore: integer("performance_score").notNull().default(0),
+  activeDeliveries: integer("active_deliveries").notNull(),
+  performanceScore: integer("performance_score").notNull(),
   location: text("location").notNull(),
   vehicle: text("vehicle"),
   phone: text("phone"),
@@ -47,7 +47,7 @@ export const deliveries = pgTable("deliveries", {
   eta: text("eta").notNull(),
   actualDeliveryTime: text("actual_delivery_time"),
   pickupTime: text("pickup_time"),
-  priority: text("priority").notNull().default("normal"),
+  priority: text("priority").notNull(),
   packageSize: text("package_size"),
   specialInstructions: text("special_instructions"),
 });
@@ -66,7 +66,7 @@ export const anomalies = pgTable("anomalies", {
   description: text("description").notNull(),
   rootCause: text("root_cause"),
   detectedAt: text("detected_at").notNull(),
-  resolved: boolean("resolved").notNull().default(false),
+  resolved: boolean("resolved").notNull(),
   resolution: text("resolution"),
 });
 
@@ -80,9 +80,9 @@ export const zones = pgTable("zones", {
   centerLat: real("center_lat").notNull(),
   centerLng: real("center_lng").notNull(),
   radius: real("radius").notNull(),
-  avgDelayMinutes: integer("avg_delay_minutes").notNull().default(0),
-  deliveryCount: integer("delivery_count").notNull().default(0),
-  alertLevel: text("alert_level").notNull().default("normal"),
+  avgDelayMinutes: integer("avg_delay_minutes").notNull(),
+  deliveryCount: integer("delivery_count").notNull(),
+  alertLevel: text("alert_level").notNull(),
 });
 
 export const insertZoneSchema = createInsertSchema(zones).omit({ id: true });
@@ -92,13 +92,13 @@ export type Zone = typeof zones.$inferSelect;
 export const performanceMetrics = pgTable("performance_metrics", {
   id: varchar("id").primaryKey(),
   date: text("date").notNull(),
-  totalDeliveries: integer("total_deliveries").notNull().default(0),
-  onTimeDeliveries: integer("on_time_deliveries").notNull().default(0),
-  delayedDeliveries: integer("delayed_deliveries").notNull().default(0),
-  failedDeliveries: integer("failed_deliveries").notNull().default(0),
-  avgDeliveryTime: integer("avg_delivery_time").notNull().default(0),
-  avgEtaAccuracy: real("avg_eta_accuracy").notNull().default(0),
-  activeCouriers: integer("active_couriers").notNull().default(0),
+  totalDeliveries: integer("total_deliveries").notNull(),
+  onTimeDeliveries: integer("on_time_deliveries").notNull(),
+  delayedDeliveries: integer("delayed_deliveries").notNull(),
+  failedDeliveries: integer("failed_deliveries").notNull(),
+  avgDeliveryTime: integer("avg_delivery_time").notNull(),
+  avgEtaAccuracy: real("avg_eta_accuracy").notNull(),
+  activeCouriers: integer("active_couriers").notNull(),
 });
 
 export const insertPerformanceMetricSchema = createInsertSchema(performanceMetrics).omit({ id: true });

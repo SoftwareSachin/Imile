@@ -19,27 +19,31 @@ export interface IStorage {
   getCourier(id: string): Promise<Courier | undefined>;
   getAllCouriers(): Promise<Courier[]>;
   createCourier(courier: InsertCourier): Promise<Courier>;
-  updateCourier(id: string, courier: Partial<InsertCourier>): Promise<Courier | undefined>;
+  updateCourier(id: string, courier: Partial<Courier>): Promise<Courier | undefined>;
+  deleteCourier(id: string): Promise<boolean>;
   
   // Delivery methods
   getDelivery(id: string): Promise<Delivery | undefined>;
   getAllDeliveries(): Promise<Delivery[]>;
   getDeliveriesByCourier(courierId: string): Promise<Delivery[]>;
   createDelivery(delivery: InsertDelivery): Promise<Delivery>;
-  updateDelivery(id: string, delivery: Partial<InsertDelivery>): Promise<Delivery | undefined>;
+  updateDelivery(id: string, delivery: Partial<Delivery>): Promise<Delivery | undefined>;
+  deleteDelivery(id: string): Promise<boolean>;
   
   // Anomaly methods
   getAnomaly(id: string): Promise<Anomaly | undefined>;
   getAllAnomalies(): Promise<Anomaly[]>;
   getUnresolvedAnomalies(): Promise<Anomaly[]>;
   createAnomaly(anomaly: InsertAnomaly): Promise<Anomaly>;
-  updateAnomaly(id: string, anomaly: Partial<InsertAnomaly>): Promise<Anomaly | undefined>;
+  updateAnomaly(id: string, anomaly: Partial<Anomaly>): Promise<Anomaly | undefined>;
+  deleteAnomaly(id: string): Promise<boolean>;
   
   // Zone methods
   getZone(id: string): Promise<Zone | undefined>;
   getAllZones(): Promise<Zone[]>;
   createZone(zone: InsertZone): Promise<Zone>;
-  updateZone(id: string, zone: Partial<InsertZone>): Promise<Zone | undefined>;
+  updateZone(id: string, zone: Partial<Zone>): Promise<Zone | undefined>;
+  deleteZone(id: string): Promise<boolean>;
   
   // Performance metrics methods
   getPerformanceMetric(id: string): Promise<PerformanceMetric | undefined>;
@@ -51,7 +55,7 @@ export interface IStorage {
   getEtaPrediction(id: string): Promise<EtaPrediction | undefined>;
   getEtaPredictionByDelivery(deliveryId: string): Promise<EtaPrediction | undefined>;
   createEtaPrediction(prediction: InsertEtaPrediction): Promise<EtaPrediction>;
-  updateEtaPrediction(id: string, prediction: Partial<InsertEtaPrediction>): Promise<EtaPrediction | undefined>;
+  updateEtaPrediction(id: string, prediction: Partial<EtaPrediction>): Promise<EtaPrediction | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -71,103 +75,6 @@ export class MemStorage implements IStorage {
     this.zones = new Map();
     this.performanceMetrics = new Map();
     this.etaPredictions = new Map();
-    
-    this.seedData();
-  }
-
-  private seedData() {
-    // Seed couriers
-    const courierData: InsertCourier[] = [
-      { name: 'John Doe', status: 'active', lat: 37.7849, lng: -122.4094, activeDeliveries: 5, performanceScore: 96, location: 'Downtown SF', vehicle: 'Bike', phone: '555-0101' },
-      { name: 'Jane Smith', status: 'active', lat: 37.7649, lng: -122.4294, activeDeliveries: 3, performanceScore: 94, location: 'Mission District', vehicle: 'Van', phone: '555-0102' },
-      { name: 'Mike Johnson', status: 'idle', lat: 37.7749, lng: -122.4394, activeDeliveries: 0, performanceScore: 89, location: 'SOMA', vehicle: 'Bike', phone: '555-0103' },
-      { name: 'Lisa Brown', status: 'active', lat: 37.7949, lng: -122.4194, activeDeliveries: 4, performanceScore: 97, location: 'Nob Hill', vehicle: 'Car', phone: '555-0104' },
-      { name: 'David Wilson', status: 'active', lat: 37.7550, lng: -122.4150, activeDeliveries: 6, performanceScore: 91, location: 'Castro', vehicle: 'Bike', phone: '555-0105' },
-      { name: 'Sarah Martinez', status: 'idle', lat: 37.8080, lng: -122.4177, activeDeliveries: 0, performanceScore: 93, location: 'Fisherman\'s Wharf', vehicle: 'Van', phone: '555-0106' },
-      { name: 'Chris Taylor', status: 'active', lat: 37.7750, lng: -122.4230, activeDeliveries: 2, performanceScore: 95, location: 'Hayes Valley', vehicle: 'Bike', phone: '555-0107' },
-      { name: 'Amy Anderson', status: 'active', lat: 37.8020, lng: -122.4350, activeDeliveries: 5, performanceScore: 98, location: 'Marina District', vehicle: 'Car', phone: '555-0108' },
-    ];
-    
-    courierData.forEach((courier, index) => {
-      const id = `C${index + 1}`;
-      this.couriers.set(id, { id, ...courier });
-    });
-
-    // Seed deliveries
-    const deliveryData: InsertDelivery[] = [
-      { orderId: 'ORD-8291', customerId: 'CUST-001', customerName: 'Sarah Chen', address: '742 Market St, San Francisco, CA', lat: 37.7875, lng: -122.4035, courierId: 'C1', status: 'in-transit', eta: '2:30 PM', pickupTime: '1:42 PM', priority: 'high', packageSize: 'medium' },
-      { orderId: 'ORD-8284', customerId: 'CUST-002', customerName: 'Michael Park', address: '1234 Mission St, San Francisco, CA', lat: 37.7799, lng: -122.4190, courierId: 'C2', status: 'on-time', eta: '3:15 PM', pickupTime: '2:05 PM', priority: 'normal', packageSize: 'small' },
-      { orderId: 'ORD-8276', customerId: 'CUST-003', customerName: 'Emily Rodriguez', address: '567 Valencia St, San Francisco, CA', lat: 37.7615, lng: -122.4213, courierId: 'C3', status: 'delayed', eta: '2:45 PM (delayed)', pickupTime: '1:30 PM', priority: 'normal', packageSize: 'large' },
-      { orderId: 'ORD-8265', customerId: 'CUST-004', customerName: 'David Kim', address: '890 Folsom St, San Francisco, CA', lat: 37.7820, lng: -122.3964, courierId: 'C4', status: 'delivered', eta: '1:20 PM', actualDeliveryTime: '1:18 PM', pickupTime: '12:45 PM', priority: 'normal', packageSize: 'small' },
-      { orderId: 'ORD-8253', customerId: 'CUST-005', customerName: 'Amanda Lee', address: '321 Howard St, San Francisco, CA', lat: 37.7886, lng: -122.3960, courierId: 'C1', status: 'on-time', eta: '4:00 PM', pickupTime: '3:15 PM', priority: 'low', packageSize: 'medium' },
-    ];
-    
-    deliveryData.forEach((delivery, index) => {
-      const id = `D${index + 1}`;
-      this.deliveries.set(id, { id, ...delivery });
-    });
-
-    // Seed anomalies
-    const anomalyData: InsertAnomaly[] = [
-      { deliveryId: 'D1', orderId: 'ORD-8291', severity: 'critical', type: 'delay', title: 'Delivery Failure Risk', description: 'Courier #C-428 is running 15 minutes late, beyond recovery threshold', rootCause: 'Heavy traffic on Market St', detectedAt: '2 min ago', resolved: false },
-      { deliveryId: 'D2', orderId: 'ORD-8284', severity: 'warning', type: 'route-deviation', title: 'GPS Route Deviation', description: 'Courier took alternative route, ETA updated to 3:45 PM', rootCause: 'Road construction on Mission St', detectedAt: '5 min ago', resolved: false },
-      { severity: 'info', type: 'traffic', title: 'Congestion Zone Detected', description: 'High traffic in Downtown area, average delay of 8 minutes', rootCause: 'Rush hour traffic', detectedAt: '12 min ago', resolved: false },
-      { deliveryId: 'D3', orderId: 'ORD-8276', severity: 'warning', type: 'delay', title: 'Package Delay Alert', description: 'Delivery running 20 minutes behind schedule', rootCause: 'Multiple stops delay', detectedAt: '18 min ago', resolved: false },
-    ];
-    
-    anomalyData.forEach((anomaly, index) => {
-      const id = `A${index + 1}`;
-      this.anomalies.set(id, { id, ...anomaly });
-    });
-
-    // Seed zones
-    const zoneData: InsertZone[] = [
-      { name: 'Downtown SF', centerLat: 37.7875, centerLng: -122.4035, radius: 1.5, avgDelayMinutes: 12, deliveryCount: 145, alertLevel: 'high' },
-      { name: 'Mission District', centerLat: 37.7599, centerLng: -122.4148, radius: 1.2, avgDelayMinutes: 8, deliveryCount: 98, alertLevel: 'medium' },
-      { name: 'SOMA', centerLat: 37.7786, centerLng: -122.3893, radius: 1.0, avgDelayMinutes: 5, deliveryCount: 76, alertLevel: 'low' },
-      { name: 'Marina District', centerLat: 37.8020, centerLng: -122.4380, radius: 1.3, avgDelayMinutes: 3, deliveryCount: 52, alertLevel: 'low' },
-      { name: 'Castro', centerLat: 37.7609, centerLng: -122.4350, radius: 0.8, avgDelayMinutes: 6, deliveryCount: 64, alertLevel: 'medium' },
-    ];
-    
-    zoneData.forEach((zone, index) => {
-      const id = `Z${index + 1}`;
-      this.zones.set(id, { id, ...zone });
-    });
-
-    // Seed performance metrics
-    const today = new Date();
-    const performanceData: InsertPerformanceMetric[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      performanceData.push({
-        date: date.toISOString().split('T')[0],
-        totalDeliveries: 150 + Math.floor(Math.random() * 50),
-        onTimeDeliveries: 135 + Math.floor(Math.random() * 20),
-        delayedDeliveries: 10 + Math.floor(Math.random() * 15),
-        failedDeliveries: 2 + Math.floor(Math.random() * 5),
-        avgDeliveryTime: 38 + Math.floor(Math.random() * 10),
-        avgEtaAccuracy: 3.0 + Math.random() * 1.5,
-        activeCouriers: 25 + Math.floor(Math.random() * 10),
-      });
-    }
-    
-    performanceData.forEach((metric, index) => {
-      const id = `PM${index + 1}`;
-      this.performanceMetrics.set(id, { id, ...metric });
-    });
-
-    // Seed ETA predictions
-    const etaPredictionData: InsertEtaPrediction[] = [
-      { deliveryId: 'D1', orderId: 'ORD-8291', predictedEta: '2:35 PM', confidence: 0.87, factors: ['traffic', 'weather', 'historical'], trafficImpact: 8, weatherImpact: 2, historicalAccuracy: 0.92 },
-      { deliveryId: 'D2', orderId: 'ORD-8284', predictedEta: '3:15 PM', confidence: 0.94, factors: ['historical', 'courier'], trafficImpact: 3, weatherImpact: 0, historicalAccuracy: 0.95 },
-      { deliveryId: 'D3', orderId: 'ORD-8276', predictedEta: '2:55 PM', confidence: 0.78, factors: ['traffic', 'delay'], trafficImpact: 15, weatherImpact: 1, historicalAccuracy: 0.88 },
-    ];
-    
-    etaPredictionData.forEach((prediction, index) => {
-      const id = `EP${index + 1}`;
-      this.etaPredictions.set(id, { id, ...prediction });
-    });
   }
 
   // User methods
@@ -198,18 +105,27 @@ export class MemStorage implements IStorage {
   }
 
   async createCourier(insertCourier: InsertCourier): Promise<Courier> {
-    const id = `C${this.couriers.size + 1}`;
-    const courier: Courier = { ...insertCourier, id };
+    const id = randomUUID();
+    const courier: Courier = { 
+      id, 
+      ...insertCourier,
+      vehicle: insertCourier.vehicle ?? null,
+      phone: insertCourier.phone ?? null
+    };
     this.couriers.set(id, courier);
     return courier;
   }
 
-  async updateCourier(id: string, updates: Partial<InsertCourier>): Promise<Courier | undefined> {
+  async updateCourier(id: string, updates: Partial<Courier>): Promise<Courier | undefined> {
     const courier = this.couriers.get(id);
     if (!courier) return undefined;
     const updated = { ...courier, ...updates };
     this.couriers.set(id, updated);
     return updated;
+  }
+
+  async deleteCourier(id: string): Promise<boolean> {
+    return this.couriers.delete(id);
   }
 
   // Delivery methods
@@ -226,18 +142,29 @@ export class MemStorage implements IStorage {
   }
 
   async createDelivery(insertDelivery: InsertDelivery): Promise<Delivery> {
-    const id = `D${this.deliveries.size + 1}`;
-    const delivery: Delivery = { ...insertDelivery, id };
+    const id = randomUUID();
+    const delivery: Delivery = { 
+      id, 
+      ...insertDelivery,
+      actualDeliveryTime: insertDelivery.actualDeliveryTime ?? null,
+      pickupTime: insertDelivery.pickupTime ?? null,
+      packageSize: insertDelivery.packageSize ?? null,
+      specialInstructions: insertDelivery.specialInstructions ?? null
+    };
     this.deliveries.set(id, delivery);
     return delivery;
   }
 
-  async updateDelivery(id: string, updates: Partial<InsertDelivery>): Promise<Delivery | undefined> {
+  async updateDelivery(id: string, updates: Partial<Delivery>): Promise<Delivery | undefined> {
     const delivery = this.deliveries.get(id);
     if (!delivery) return undefined;
     const updated = { ...delivery, ...updates };
     this.deliveries.set(id, updated);
     return updated;
+  }
+
+  async deleteDelivery(id: string): Promise<boolean> {
+    return this.deliveries.delete(id);
   }
 
   // Anomaly methods
@@ -254,18 +181,29 @@ export class MemStorage implements IStorage {
   }
 
   async createAnomaly(insertAnomaly: InsertAnomaly): Promise<Anomaly> {
-    const id = `A${this.anomalies.size + 1}`;
-    const anomaly: Anomaly = { ...insertAnomaly, id };
+    const id = randomUUID();
+    const anomaly: Anomaly = { 
+      id, 
+      ...insertAnomaly,
+      deliveryId: insertAnomaly.deliveryId ?? null,
+      orderId: insertAnomaly.orderId ?? null,
+      rootCause: insertAnomaly.rootCause ?? null,
+      resolution: insertAnomaly.resolution ?? null
+    };
     this.anomalies.set(id, anomaly);
     return anomaly;
   }
 
-  async updateAnomaly(id: string, updates: Partial<InsertAnomaly>): Promise<Anomaly | undefined> {
+  async updateAnomaly(id: string, updates: Partial<Anomaly>): Promise<Anomaly | undefined> {
     const anomaly = this.anomalies.get(id);
     if (!anomaly) return undefined;
     const updated = { ...anomaly, ...updates };
     this.anomalies.set(id, updated);
     return updated;
+  }
+
+  async deleteAnomaly(id: string): Promise<boolean> {
+    return this.anomalies.delete(id);
   }
 
   // Zone methods
@@ -278,18 +216,22 @@ export class MemStorage implements IStorage {
   }
 
   async createZone(insertZone: InsertZone): Promise<Zone> {
-    const id = `Z${this.zones.size + 1}`;
-    const zone: Zone = { ...insertZone, id };
+    const id = randomUUID();
+    const zone: Zone = { id, ...insertZone };
     this.zones.set(id, zone);
     return zone;
   }
 
-  async updateZone(id: string, updates: Partial<InsertZone>): Promise<Zone | undefined> {
+  async updateZone(id: string, updates: Partial<Zone>): Promise<Zone | undefined> {
     const zone = this.zones.get(id);
     if (!zone) return undefined;
     const updated = { ...zone, ...updates };
     this.zones.set(id, updated);
     return updated;
+  }
+
+  async deleteZone(id: string): Promise<boolean> {
+    return this.zones.delete(id);
   }
 
   // Performance metrics methods
@@ -308,8 +250,8 @@ export class MemStorage implements IStorage {
   }
 
   async createPerformanceMetric(insertMetric: InsertPerformanceMetric): Promise<PerformanceMetric> {
-    const id = `PM${this.performanceMetrics.size + 1}`;
-    const metric: PerformanceMetric = { ...insertMetric, id };
+    const id = randomUUID();
+    const metric: PerformanceMetric = { id, ...insertMetric };
     this.performanceMetrics.set(id, metric);
     return metric;
   }
@@ -324,13 +266,20 @@ export class MemStorage implements IStorage {
   }
 
   async createEtaPrediction(insertPrediction: InsertEtaPrediction): Promise<EtaPrediction> {
-    const id = `EP${this.etaPredictions.size + 1}`;
-    const prediction: EtaPrediction = { ...insertPrediction, id };
+    const id = randomUUID();
+    const prediction: EtaPrediction = { 
+      id, 
+      ...insertPrediction,
+      factors: insertPrediction.factors ?? null,
+      trafficImpact: insertPrediction.trafficImpact ?? null,
+      weatherImpact: insertPrediction.weatherImpact ?? null,
+      historicalAccuracy: insertPrediction.historicalAccuracy ?? null
+    };
     this.etaPredictions.set(id, prediction);
     return prediction;
   }
 
-  async updateEtaPrediction(id: string, updates: Partial<InsertEtaPrediction>): Promise<EtaPrediction | undefined> {
+  async updateEtaPrediction(id: string, updates: Partial<EtaPrediction>): Promise<EtaPrediction | undefined> {
     const prediction = this.etaPredictions.get(id);
     if (!prediction) return undefined;
     const updated = { ...prediction, ...updates };
