@@ -5,6 +5,18 @@ import { etaEngine } from "./eta-engine";
 const MOVE_INTERVAL = 5000;
 const MOVE_DISTANCE = 0.002;
 
+/**
+ * TrackingSimulator - Demo/Testing GPS Simulation
+ * 
+ * This simulator generates realistic courier movement for demonstration and testing purposes.
+ * It interpolates positions between courier current location and delivery destination.
+ * 
+ * For production use with real courier tracking:
+ * - Replace this with a webhook/API endpoint that receives actual GPS coordinates from courier devices
+ * - Implement real-time GPS data ingestion from courier mobile apps or tracking devices
+ * - Store actual location updates in the database with timestamps
+ * - Use WebSocket or Server-Sent Events to push live updates to the frontend
+ */
 class TrackingSimulator {
   private interval: NodeJS.Timeout | null = null;
   private activeCouriers: Set<string> = new Set();
