@@ -33,7 +33,7 @@ The frontend follows a professional data dashboard approach inspired by Linear, 
 **Component Architecture:**
 - Reusable UI components in `/client/src/components/ui/` (Shadcn components)
 - Feature components in `/client/src/components/` (AlertCard, CourierCard, DeliveryMap, etc.)
-- Page-level components in `/client/src/pages/` (Dashboard, Analytics, Couriers, Tracking)
+- Page-level components in `/client/src/pages/` (Dashboard, Analytics, Couriers, Tracking, DataUpload)
 - Custom hooks in `/client/src/hooks/`
 
 ### Backend Architecture

@@ -1,19 +1,57 @@
 import { useState } from "react";
-import { Upload, FileText, CheckCircle, AlertCircle } from "lucide-react";
+import { Upload, FileText, CheckCircle2, AlertCircle, ShoppingBag, Zap, Truck, Package, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
 
 const COMPANIES = [
-  "Blinkit (Zomato)",
-  "Zepto",
-  "Swiggy Instamart",
-  "BBNow (BigBasket)",
-  "Dunzo Daily",
-  "Other"
+  { 
+    id: "Blinkit (Zomato)", 
+    name: "Blinkit", 
+    subtitle: "by Zomato",
+    color: "#F6CB46",
+    darkColor: "#E0C460",
+    icon: Zap,
+    description: "10-minute grocery delivery"
+  },
+  { 
+    id: "Zepto", 
+    name: "Zepto", 
+    subtitle: "Quick Commerce",
+    color: "#E91E63",
+    darkColor: "#F06292",
+    icon: Clock,
+    description: "Ultra-fast delivery"
+  },
+  { 
+    id: "Swiggy Instamart", 
+    name: "Instamart", 
+    subtitle: "by Swiggy",
+    color: "#FC8019",
+    darkColor: "#FF9933",
+    icon: ShoppingBag,
+    description: "Instant grocery delivery"
+  },
+  { 
+    id: "BBNow (BigBasket)", 
+    name: "BBNow", 
+    subtitle: "by BigBasket",
+    color: "#84C225",
+    darkColor: "#9CCC65",
+    icon: Package,
+    description: "Quick essentials"
+  },
+  { 
+    id: "Dunzo Daily", 
+    name: "Dunzo Daily", 
+    subtitle: "Daily Essentials",
+    color: "#0066FF",
+    darkColor: "#4285F4",
+    icon: Truck,
+    description: "Daily needs delivery"
+  }
 ];
 
 export default function DataUpload() {
@@ -21,24 +59,49 @@ export default function DataUpload() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<any>(null);
+  const [dragActive, setDragActive] = useState(false);
   const { toast } = useToast();
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFile = (file: File) => {
+    const validTypes = ['.csv', '.xlsx', '.xls'];
+    const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    
+    if (validTypes.includes(fileExtension)) {
+      setSelectedFile(file);
+      setUploadResult(null);
+    } else {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a CSV or Excel file",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const validTypes = ['.csv', '.xlsx', '.xls'];
-      const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-      
-      if (validTypes.includes(fileExtension)) {
-        setSelectedFile(file);
-        setUploadResult(null);
-      } else {
-        toast({
-          title: "Invalid file type",
-          description: "Please upload a CSV or Excel file (.csv, .xlsx, .xls)",
-          variant: "destructive",
-        });
-      }
+      handleFile(file);
     }
   };
 
@@ -70,7 +133,7 @@ export default function DataUpload() {
       if (response.ok) {
         setUploadResult(result);
         toast({
-          title: "Upload successful!",
+          title: "Upload successful",
           description: `Imported ${result.stats.couriersCreated} couriers and ${result.stats.deliveriesCreated} deliveries`,
         });
         
@@ -95,147 +158,261 @@ export default function DataUpload() {
     }
   };
 
+  const selectedCompanyData = COMPANIES.find(c => c.id === selectedCompany);
+
   return (
-    <div className="container mx-auto p-6 max-w-4xl" data-testid="page-upload">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Upload Company Data</h1>
-        <p className="text-muted-foreground">
+    <div className="container mx-auto px-4 py-8 max-w-6xl" data-testid="page-upload">
+      <div className="mb-10">
+        <h1 className="text-3xl font-semibold tracking-tight mb-3">Data Import</h1>
+        <p className="text-base text-muted-foreground">
           Import courier and delivery data from Excel or CSV files
         </p>
       </div>
 
-      <div className="grid gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Select Company</CardTitle>
-            <CardDescription>
-              Choose the delivery company for the data you're uploading
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Label htmlFor="company-select">Company Name</Label>
-              <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                <SelectTrigger id="company-select" data-testid="select-company">
-                  <SelectValue placeholder="Select a company" />
-                </SelectTrigger>
-                <SelectContent>
-                  {COMPANIES.map((company) => (
-                    <SelectItem key={company} value={company}>
-                      {company}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="space-y-8">
+        {/* Company Selection */}
+        <div>
+          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-4">
+            Select Company
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {COMPANIES.map((company) => {
+              const Icon = company.icon;
+              const isSelected = selectedCompany === company.id;
+              
+              return (
+                <button
+                  key={company.id}
+                  onClick={() => setSelectedCompany(company.id)}
+                  data-testid={`select-company-${company.id}`}
+                  className={cn(
+                    "relative group text-left transition-all duration-200",
+                    "rounded-xl border-2 p-5 hover:shadow-lg",
+                    isSelected 
+                      ? "border-foreground shadow-md scale-[1.02]" 
+                      : "border-border hover:border-foreground/50"
+                  )}
+                  style={{
+                    backgroundColor: isSelected 
+                      ? `${company.color}10` 
+                      : 'transparent'
+                  }}
+                >
+                  <div className="flex flex-col gap-3">
+                    <div 
+                      className="w-12 h-12 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110"
+                      style={{ 
+                        backgroundColor: company.color,
+                      }}
+                    >
+                      <Icon className="w-6 h-6 text-white" strokeWidth={2.5} />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-base text-foreground">
+                        {company.name}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {company.subtitle}
+                      </div>
+                    </div>
+                  </div>
+                  {isSelected && (
+                    <div className="absolute top-3 right-3">
+                      <CheckCircle2 
+                        className="w-5 h-5" 
+                        style={{ color: company.color }}
+                      />
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Upload File</CardTitle>
-            <CardDescription>
-              Upload CSV or Excel files containing courier and delivery data
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center">
-                <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                <div className="space-y-2">
-                  <Label htmlFor="file-upload" className="cursor-pointer">
-                    <span className="text-primary hover:text-primary/80">
-                      Click to upload
-                    </span>
-                    {" "}or drag and drop
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    CSV, XLSX, or XLS files
-                  </p>
-                  <input
-                    id="file-upload"
-                    type="file"
-                    className="hidden"
-                    accept=".csv,.xlsx,.xls"
-                    onChange={handleFileChange}
-                    data-testid="input-file"
-                  />
-                </div>
-                {selectedFile && (
-                  <div className="mt-4 flex items-center justify-center gap-2 text-sm">
-                    <FileText className="h-4 w-4" />
-                    <span data-testid="text-filename">{selectedFile.name}</span>
+        {/* File Upload */}
+        <div>
+          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-4">
+            Upload File
+          </h2>
+          <Card className="border-2">
+            <CardContent className="p-8">
+              <div
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                className={cn(
+                  "relative border-2 border-dashed rounded-xl p-12 transition-all duration-200",
+                  dragActive 
+                    ? "border-foreground bg-accent" 
+                    : "border-border hover:border-foreground/50"
+                )}
+              >
+                <input
+                  id="file-upload"
+                  type="file"
+                  className="hidden"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={handleFileChange}
+                  data-testid="input-file"
+                />
+                
+                {!selectedFile ? (
+                  <label htmlFor="file-upload" className="cursor-pointer block">
+                    <div className="flex flex-col items-center text-center">
+                      <div className="w-16 h-16 rounded-full bg-accent flex items-center justify-center mb-4">
+                        <Upload className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-lg font-medium mb-2">
+                        Drop your file here, or <span className="text-primary">browse</span>
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Supports CSV, XLSX, and XLS files up to 10MB
+                      </p>
+                    </div>
+                  </label>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <FileText className="w-6 h-6 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium" data-testid="text-filename">
+                          {selectedFile.name}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {(selectedFile.size / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedFile(null);
+                        const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+                        if (fileInput) fileInput.value = '';
+                      }}
+                    >
+                      Remove
+                    </Button>
                   </div>
                 )}
               </div>
 
-              <Button
-                onClick={handleUpload}
-                disabled={!selectedFile || !selectedCompany || uploading}
-                className="w-full"
-                data-testid="button-upload"
-              >
-                {uploading ? "Uploading..." : "Upload Data"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="mt-6">
+                <Button
+                  onClick={handleUpload}
+                  disabled={!selectedFile || !selectedCompany || uploading}
+                  className="w-full h-12 text-base font-medium"
+                  size="lg"
+                  data-testid="button-upload"
+                  style={
+                    selectedCompanyData && selectedFile && !uploading
+                      ? {
+                          backgroundColor: selectedCompanyData.color,
+                          color: 'white',
+                        }
+                      : undefined
+                  }
+                >
+                  {uploading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-5 h-5 mr-2" />
+                      Import Data
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
+        {/* Upload Results */}
         {uploadResult && (
-          <Card className="border-green-200 dark:border-green-800">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-green-600 dark:text-green-400">
-                <CheckCircle className="h-5 w-5" />
-                Upload Complete
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2" data-testid="upload-results">
-                <p className="text-sm">
-                  <strong>Couriers Created:</strong> {uploadResult.stats.couriersCreated}
-                </p>
-                <p className="text-sm">
-                  <strong>Deliveries Created:</strong> {uploadResult.stats.deliveriesCreated}
-                </p>
-                {uploadResult.stats.errors > 0 && (
-                  <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md">
-                    <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
-                      <AlertCircle className="h-4 w-4" />
-                      <strong>{uploadResult.stats.errors} errors occurred</strong>
+          <Card className="border-2 border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                  <CheckCircle2 className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1" data-testid="upload-results">
+                  <h3 className="font-semibold text-lg text-green-900 dark:text-green-100 mb-3">
+                    Import Successful
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Couriers Imported</p>
+                      <p className="text-2xl font-semibold text-foreground">
+                        {uploadResult.stats.couriersCreated}
+                      </p>
                     </div>
-                    {uploadResult.stats.errorDetails.length > 0 && (
-                      <ul className="mt-2 ml-6 text-sm text-yellow-700 dark:text-yellow-300 list-disc">
-                        {uploadResult.stats.errorDetails.map((error: string, idx: number) => (
-                          <li key={idx}>{error}</li>
-                        ))}
-                      </ul>
-                    )}
+                    <div>
+                      <p className="text-sm text-muted-foreground">Deliveries Imported</p>
+                      <p className="text-2xl font-semibold text-foreground">
+                        {uploadResult.stats.deliveriesCreated}
+                      </p>
+                    </div>
                   </div>
-                )}
+                  {uploadResult.stats.errors > 0 && (
+                    <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                      <div className="flex items-center gap-2 text-yellow-900 dark:text-yellow-100 mb-2">
+                        <AlertCircle className="w-4 h-4" />
+                        <span className="font-medium">{uploadResult.stats.errors} rows had errors</span>
+                      </div>
+                      {uploadResult.stats.errorDetails.length > 0 && (
+                        <ul className="ml-6 text-sm text-yellow-800 dark:text-yellow-200 space-y-1">
+                          {uploadResult.stats.errorDetails.map((error: string, idx: number) => (
+                            <li key={idx} className="list-disc">{error}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>File Format Guide</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4 text-sm">
-              <div>
-                <h4 className="font-semibold mb-2">For Courier Data:</h4>
-                <p className="text-muted-foreground">Include columns: name/courierName, status, lat/latitude, lng/longitude, activeDeliveries, performanceScore, location, vehicle, phone</p>
+        {/* Format Guide */}
+        <Card className="border">
+          <CardContent className="p-6">
+            <h3 className="font-semibold text-lg mb-4">File Format Requirements</h3>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm text-foreground">Courier Data Columns</h4>
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <p>• name / courierName</p>
+                  <p>• status</p>
+                  <p>• lat / latitude, lng / longitude</p>
+                  <p>• activeDeliveries</p>
+                  <p>• performanceScore</p>
+                  <p>• location, vehicle, phone</p>
+                </div>
               </div>
-              <div>
-                <h4 className="font-semibold mb-2">For Delivery Data:</h4>
-                <p className="text-muted-foreground">Include columns: orderId, customerId, customerName, address, lat/latitude, lng/longitude, courierId, status, eta, priority, packageSize</p>
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm text-foreground">Delivery Data Columns</h4>
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <p>• orderId, customerId, customerName</p>
+                  <p>• address</p>
+                  <p>• lat / latitude, lng / longitude</p>
+                  <p>• courierId, status, eta</p>
+                  <p>• priority, packageSize</p>
+                </div>
               </div>
-              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
-                <p className="text-blue-800 dark:text-blue-200">
-                  <strong>Note:</strong> The system will automatically detect whether rows contain courier or delivery data based on the columns present.
-                </p>
-              </div>
+            </div>
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p className="text-sm text-blue-900 dark:text-blue-100">
+                The system automatically detects data types based on columns. Both courier and delivery data can be in the same file.
+              </p>
             </div>
           </CardContent>
         </Card>
